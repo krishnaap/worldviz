@@ -8,43 +8,44 @@
   <style>
     html, body, #map { height: 100%; margin: 0; }
   </style>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-velocity/dist/leaflet-velocity.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const map = L.map('map').setView([0, 0], 2);
+
+      const gibsLayer = L.tileLayer(
+        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-12-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+        {
+          attribution: 'NASA GIBS',
+          tileSize: 256,
+          maxZoom: 9,
+          minZoom: 1,
+          noWrap: true
+        }
+      ).addTo(map);
+
+      fetch('https://raw.githubusercontent.com/danwild/leaflet-velocity/master/demo/wind-global.json')
+        .then(res => res.json())
+        .then(windData => {
+          const velocityLayer = L.velocityLayer({
+            data: windData,
+            displayValues: true,
+            velocityScale: 0.005,
+            particleAge: 90,
+            lineWidth: 1,
+            particleMultiplier: 0.01,
+            frameRate: 20,
+            colorScale: ['rgba(255,255,255,0.3)', 'rgba(173,216,230,0.5)', 'rgba(0,191,255,0.8)']
+          });
+          velocityLayer.addTo(map);
+          L.control.layers({ 'Satellite': gibsLayer }, { 'Wind': velocityLayer }, { collapsed: false }).addTo(map);
+        });
+    });
+  </script>
 </head>
 <body>
 <div id="map"></div>
-
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-velocity/dist/leaflet-velocity.min.js"></script>
-
-<script>
-  const map = L.map('map').setView([0, 0], 2);
-
-  const gibsLayer = L.tileLayer(
-    'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-12-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
-    {
-      attribution: 'NASA GIBS',
-      tileSize: 256,
-      maxZoom: 9,
-      minZoom: 1,
-      noWrap: true
-    }
-  ).addTo(map);
-
-  fetch('data/wind.json')
-    .then(res => res.json())
-    .then(windData => {
-      const velocityLayer = L.velocityLayer({
-        data: windData,
-        displayValues: false,
-        velocityScale: 0.01,
-        particleAge: 90,
-        lineWidth: 1,
-        particleMultiplier: 0.05,
-        frameRate: 20,
-        colorScale: ['rgba(255,255,255,0.3)', 'rgba(173,216,230,0.5)', 'rgba(0,191,255,0.8)']
-      });
-      velocityLayer.addTo(map);
-      L.control.layers({ 'Satellite': gibsLayer }, { 'Wind': velocityLayer }, { collapsed: false }).addTo(map);
-    });
-</script>
 </body>
 </html>
+
