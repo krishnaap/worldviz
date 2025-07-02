@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>WorldViz – Satellite + Dynamic Wind Viewer</title>
+  <title>WorldViz – Multi‑Year Satellite + Wind Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     html,body,#map{height:100%;margin:0}
-    #controls{position:absolute;top:10px;left:50px;z-index:1000;background:rgba(255,255,255,.85);padding:8px;border-radius:4px;font-family:sans-serif}
-    #updateBtn{margin-left:6px}
-    #status{margin-left:8px;font-size:.9em;color:#555}
+    #controls{position:absolute;top:10px;left:50px;z-index:1000;background:rgba(255,255,255,.9);padding:8px;border-radius:4px;font-family:sans-serif;display:flex;align-items:center;gap:6px}
+    #status{font-size:.85em;color:#444}
+    button{padding:2px 6px;font-size:14px}
+    input[type="date"]{font-size:14px}
   </style>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-velocity/dist/leaflet-velocity.min.js"></script>
@@ -17,20 +18,23 @@
 <body>
 <div id="map"></div>
 <div id="controls">
-  <input type="date" id="datePicker" value="2023-12-01" min="2023-01-01" max="2023-12-31"/>
-  <button id="updateBtn">Update</button>
+  <button id="prevBtn">◀</button>
+  <input type="date" id="datePicker" value="2023-12-01" min="2000-01-01" max="2025-07-02"/>
+  <button id="nextBtn">▶</button>
   <span id="status"></span>
 </div>
 
 <script>
   document.addEventListener('DOMContentLoaded',()=>{
+    const today='2025-07-02'; // update max if needed
     const map=L.map('map').setView([0,0],2);
     let gibsLayer=null,velocityLayer=null;
+    const dateInput=document.getElementById('datePicker');
     const statusEl=document.getElementById('status');
+    const ONE_DAY=24*3600*1000;
 
     async function updateLayers(date){
       statusEl.textContent='Loading…';
-
       if(gibsLayer) map.removeLayer(gibsLayer);
       if(velocityLayer) map.removeLayer(velocityLayer);
 
@@ -43,17 +47,13 @@
       ).addTo(map);
 
       /* ------------- Wind data ------------- */
-      // Attempt to fetch date‑specific wind JSON hosted in the repo.
-      // Expected path: /data/wind-YYYY-MM-DD.json (you must add files!)
       const windUrl=`data/wind-${date}.json`;
       let windData;
       try{
         const resp=await fetch(windUrl,{cache:'no-store'});
-        if(!resp.ok) throw new Error('Not found');
+        if(!resp.ok) throw new Error('missing');
         windData=await resp.json();
-        console.log('Loaded wind from',windUrl);
-      }catch(err){
-        console.warn(`Wind file ${windUrl} not found, falling back to sample`,err);
+      }catch(_){
         const fallback='https://raw.githubusercontent.com/danwild/leaflet-velocity/master/demo/wind-global.json';
         const resp=await fetch(fallback);
         windData=await resp.json();
@@ -61,7 +61,7 @@
 
       velocityLayer=L.velocityLayer({
         data:windData,
-        displayValues:true,
+        displayValues:false,
         velocityScale:0.006,
         particleAge:90,
         lineWidth:1,
@@ -70,16 +70,31 @@
         colorScale:['rgba(255,255,255,0.3)','rgba(173,216,230,0.5)','rgba(0,191,255,0.8)']
       }).addTo(map);
 
-      statusEl.textContent='✓ Updated to '+date;
+      statusEl.textContent=`✓ ${date}`;
     }
 
-    document.getElementById('updateBtn').addEventListener('click',()=>{
-      const date=document.getElementById('datePicker').value;
-      updateLayers(date);
+    function shiftDate(days){
+      const current=new Date(dateInput.value);
+      const shifted=new Date(current.getTime()+days*ONE_DAY);
+      const iso=shifted.toISOString().slice(0,10);
+      if(iso>=dateInput.min && iso<=dateInput.max){
+        dateInput.value=iso;
+        updateLayers(iso);
+      }
+    }
+
+    document.getElementById('prevBtn').addEventListener('click',()=>shiftDate(-1));
+    document.getElementById('nextBtn').addEventListener('click',()=>shiftDate(1));
+    dateInput.addEventListener('change',()=>updateLayers(dateInput.value));
+
+    // Keyboard shortcuts ← / →
+    document.addEventListener('keydown',e=>{
+      if(e.key==='ArrowLeft') shiftDate(-1);
+      if(e.key==='ArrowRight') shiftDate(1);
     });
 
     // initial load
-    updateLayers(document.getElementById('datePicker').value);
+    updateLayers(dateInput.value);
   });
 </script>
 </body>
