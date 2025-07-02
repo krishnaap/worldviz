@@ -7,15 +7,30 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     html, body, #map { height: 100%; margin: 0; }
+    #controls { position: absolute; top: 10px; left: 50px; z-index: 1000; background: rgba(255,255,255,0.8); padding: 8px; border-radius: 4px; }
   </style>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet-velocity/dist/leaflet-velocity.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const map = L.map('map').setView([0, 0], 2);
+</head>
+<body>
+<div id="map"></div>
+<div id="controls">
+  <input type="date" id="datePicker" value="2023-12-01" min="2023-01-01" max="2023-12-31" />
+  <button id="updateBtn">Update</button>
+</div>
 
-      const gibsLayer = L.tileLayer(
-        'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/2023-12-01/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg',
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const map = L.map('map').setView([0, 0], 2);
+
+    let gibsLayer, velocityLayer;
+
+    function updateLayers(date) {
+      if (gibsLayer) map.removeLayer(gibsLayer);
+      if (velocityLayer) map.removeLayer(velocityLayer);
+
+      gibsLayer = L.tileLayer(
+        `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${date}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
         {
           attribution: 'NASA GIBS',
           tileSize: 256,
@@ -28,7 +43,7 @@
       fetch('https://raw.githubusercontent.com/danwild/leaflet-velocity/master/demo/wind-global.json')
         .then(res => res.json())
         .then(windData => {
-          const velocityLayer = L.velocityLayer({
+          velocityLayer = L.velocityLayer({
             data: windData,
             displayValues: true,
             velocityScale: 0.005,
@@ -39,13 +54,17 @@
             colorScale: ['rgba(255,255,255,0.3)', 'rgba(173,216,230,0.5)', 'rgba(0,191,255,0.8)']
           });
           velocityLayer.addTo(map);
-          L.control.layers({ 'Satellite': gibsLayer }, { 'Wind': velocityLayer }, { collapsed: false }).addTo(map);
         });
+    }
+
+    document.getElementById('updateBtn').addEventListener('click', function() {
+      const date = document.getElementById('datePicker').value;
+      updateLayers(date);
     });
-  </script>
-</head>
-<body>
-<div id="map"></div>
+
+    // Initialize map with default date
+    updateLayers(document.getElementById('datePicker').value);
+  });
+</script>
 </body>
 </html>
-
